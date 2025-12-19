@@ -3,13 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { itemService, transactionService } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
+import { Loading } from '@/components/ui/Loading';
 import { BackButton } from '@/components/ui/BackButton';
 
-export default function ItemDetail({ params }: { params: { id: string } }) {
+export default function ItemDetail() {
   const { isAdmin } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const rawId = (params as any)?.id as string | string[] | undefined;
+  const itemId = Array.isArray(rawId) ? rawId[0] : rawId;
+  const itemIdNum = itemId ? Number(itemId) : NaN;
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
@@ -21,15 +26,19 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
     const fetchItemData = async () => {
       try {
         setLoading(true);
-        const itemResponse = await itemService.getById(parseInt(params.id));
+        const itemResponse = isAdmin
+          ? await itemService.getAdminItemById(itemIdNum)
+          : await itemService.getById(itemIdNum);
         // Backend returns { status: true, data: {...} }
         const itemData = itemResponse.data.data || itemResponse.data;
         setItem(itemData);
         
         // Fetch transactions for this item - filter from all transactions
-        const transactionsResponse = await transactionService.getUserTransactions();
+        const transactionsResponse = isAdmin
+          ? await transactionService.getAllAdmin()
+          : await transactionService.getUserTransactions();
         const allTransactions = transactionsResponse.data.data || transactionsResponse.data || [];
-        const itemTransactions = allTransactions.filter((t: any) => t.item_id === parseInt(params.id));
+        const itemTransactions = allTransactions.filter((t: any) => t.item_id === itemIdNum);
         setTransactions(itemTransactions);
       } catch (error: any) {
         console.error('Error fetching item data:', error);
@@ -40,10 +49,13 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
       }
     };
 
-    if (params.id) {
-    fetchItemData();
+    if (!Number.isFinite(itemIdNum)) {
+      router.push('/inventory');
+      return;
     }
-  }, [params.id, router]);
+
+    fetchItemData();
+  }, [itemIdNum, isAdmin, router]);
 
   const handleBorrow = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,14 +85,18 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
       toast.success(response.data.message || 'Item borrowed successfully');
       
       // Refresh item data
-      const itemResponse = await itemService.getById(parseInt(params.id));
+      const itemResponse = isAdmin
+        ? await itemService.getAdminItemById(itemIdNum)
+        : await itemService.getById(itemIdNum);
       const itemData = itemResponse.data.data || itemResponse.data;
       setItem(itemData);
       
       // Refresh transactions
-      const transactionsResponse = await transactionService.getUserTransactions();
+      const transactionsResponse = isAdmin
+        ? await transactionService.getAllAdmin()
+        : await transactionService.getUserTransactions();
       const allTransactions = transactionsResponse.data.data || transactionsResponse.data || [];
-      const itemTransactions = allTransactions.filter((t: any) => t.item_id === parseInt(params.id));
+      const itemTransactions = allTransactions.filter((t: any) => t.item_id === itemIdNum);
       setTransactions(itemTransactions);
       
       setShowBorrowModal(false);
@@ -91,16 +107,7 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-center">
-          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2">Loading item data...</p>
-        </div>
-      </div>
-    );
+    return <Loading text="Loading item data..." />;
   }
 
   if (!item) {
@@ -130,7 +137,7 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
                   setDueDate(nextWeek.toISOString().split('T')[0]);
                   setShowBorrowModal(true);
               }}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-5 py-2 border border-transparent text-sm font-semibold rounded-md shadow-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2"
             >
                 Borrow Item
             </button>
@@ -138,7 +145,7 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
             {isAdmin && (
               <button
                 onClick={() => router.push(`/inventory/edit/${item.id}`)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                className="inline-flex items-center px-5 py-2 border border-transparent text-sm font-semibold rounded-md shadow-md text-[#0d476b] bg-cyan-400 hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2"
               >
                 Edit Item
               </button>
@@ -275,13 +282,11 @@ export default function ItemDetail({ params }: { params: { id: string } }) {
 
       {/* Borrow Modal */}
       {showBorrowModal && (
-        <div className="fixed z-10 inset-0 overflow-y-auto">
+        <div className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setShowBorrowModal(false)}></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full relative z-10">
               <form onSubmit={handleBorrow}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">

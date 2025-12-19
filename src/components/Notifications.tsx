@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { notificationService } from '@/lib/api';
 import { toast } from 'react-toastify';
+import { Loading } from '@/components/ui/Loading';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/Badge';
 
@@ -37,8 +38,11 @@ export function Notifications() {
       const response = await notificationService.getAll();
       const data = response.data.data || response.data || [];
       setNotifications(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching notifications:', error);
+      if (error.response?.status !== 500) {
+        setNotifications([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -49,8 +53,9 @@ export function Notifications() {
       const response = await notificationService.getUnreadCount();
       const count = response.data.data?.count || response.data.count || 0;
       setUnreadCount(count);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching unread count:', error);
+      setUnreadCount(0);
     }
   };
 
@@ -97,7 +102,7 @@ export function Notifications() {
       >
         <BellIcon className="h-6 w-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 block h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+          <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -123,7 +128,9 @@ export function Notifications() {
             </div>
             <div className="max-h-96 overflow-y-auto">
               {loading ? (
-                <div className="p-4 text-center text-gray-500">Loading...</div>
+                <div className="p-4">
+                  <Loading text="Loading notifications..." size="sm" />
+                </div>
               ) : notifications.length === 0 ? (
                 <div className="p-4 text-center text-gray-500">No notifications</div>
               ) : (

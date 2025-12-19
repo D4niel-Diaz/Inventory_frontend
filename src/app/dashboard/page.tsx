@@ -1,250 +1,122 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { itemService, transactionService, categoryService, userService } from '@/lib/api';
-import Link from 'next/link';
+import { transactionService } from '@/lib/api';
 import { Loading } from '@/components/ui/Loading';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/contexts/AuthContext';
+import Navigation from '@/components/Navigation';
 
 export default function Dashboard() {
-  const { isAdmin } = useAuth();
-  const [stats, setStats] = useState({
-    totalItems: 0,
-    totalCategories: 0,
-    totalUsers: 0,
-    recentTransactions: [],
-    lowStockItems: []
-  });
+  const { user } = useAuth();
+  const [borrowedItems, setBorrowedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchBorrowedItems = async () => {
       try {
         setLoading(true);
-        const promises = [
-          itemService.getUserItems(),
-          categoryService.getUserCategories(),
-          transactionService.getUserTransactions(),
-        ];
-
-        // Only admins can see user list
-        if (isAdmin) {
-          promises.push(userService.getAllUsers());
+        
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          setLoading(false);
+          return;
         }
 
-        const [itemsRes, categoriesRes, transactionsRes, usersRes] = await Promise.all(promises as any);
-
-        // Backend returns { status: true, data: [...] }
-        const items = itemsRes.data.data || itemsRes.data || [];
-        const categories = categoriesRes.data.data || categoriesRes.data || [];
-        const transactions = transactionsRes.data.data || transactionsRes.data || [];
-        const users = isAdmin ? (usersRes?.data?.data || usersRes?.data || []) : [];
-
-        // Get low stock items (items with quantity less than 10)
-        const lowStock = items.filter((item: any) => item.quantity < 10);
-
-        setStats({
-          totalItems: items.length,
-          totalCategories: categories.length,
-          totalUsers: users.length,
-          recentTransactions: transactions.slice(0, 5),
-          lowStockItems: lowStock
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        const response = await transactionService.getUserTransactions();
+        const transactions = response.data.data || response.data || [];
+        
+        // Filter only borrowed items (not returned)
+        const borrowed = transactions.filter((t: any) => t.status === 'borrowed');
+        setBorrowedItems(borrowed);
+      } catch (error: any) {
+        console.error('Error fetching borrowed items:', error);
+        if (error?.response?.status !== 401) {
+          console.error('Dashboard data fetch failed:', error);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardData();
+    fetchBorrowedItems();
   }, []);
 
   if (loading) {
-    return <Loading text="Loading dashboard data..." />;
+    return (
+      <>
+        <Navigation />
+        <Loading text="Loading dashboard..." />
+      </>
+    );
   }
 
   return (
-    <div className="py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">Overview of your inventory system</p>
-      </div>
-      
-      {/* Stats Cards */}
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-indigo-500 rounded-lg p-3">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
+    <>
+      <Navigation />
+      <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-[#0a2540] bg-opacity-90 backdrop-blur-sm rounded-2xl border-2 border-cyan-400 shadow-2xl p-8">
+            <h1 className="text-4xl font-serif text-center mb-8">
+              <span className="text-white">Welcome, </span>
+              <span className="text-cyan-300">{user?.name || 'User'}!</span>
+            </h1>
+            
+            {/* Account Information */}
+            <div className="mb-8">
+              <h2 className="text-xl font-serif text-white mb-4 border-b border-gray-600 pb-2">
+                Account Information
+              </h2>
+              <div className="space-y-2 text-gray-300">
+                <p><span className="font-medium">Username:</span> {user?.name || 'N/A'}</p>
+                <p><span className="font-medium">Email:</span> {user?.email || 'N/A'}</p>
+                <p><span className="font-medium">Role:</span> {user?.roles_array?.[0] || 'user'}</p>
+              </div>
             </div>
-            <div className="ml-5 w-0 flex-1">
-              <dt className="text-sm font-medium text-gray-500 truncate">Total Items</dt>
-              <dd className="flex items-baseline">
-                <div className="text-2xl font-semibold text-gray-900">{stats.totalItems}</div>
-              </dd>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <Link href="/inventory" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View all items →
-            </Link>
-          </div>
-        </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-500 rounded-lg p-3">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dt className="text-sm font-medium text-gray-500 truncate">Categories</dt>
-              <dd className="flex items-baseline">
-                <div className="text-2xl font-semibold text-gray-900">{stats.totalCategories}</div>
-              </dd>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <Link href="/categories" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View all categories →
-            </Link>
-          </div>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-red-500 rounded-lg p-3">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dt className="text-sm font-medium text-gray-500 truncate">Low Stock Items</dt>
-              <dd className="flex items-baseline">
-                <div className="text-2xl font-semibold text-gray-900">{stats.lowStockItems.length}</div>
-              </dd>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <Link href="/inventory?filter=low-stock" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View low stock items →
-            </Link>
-          </div>
-        </Card>
-      </div>
-
-      {isAdmin && (
-        <Card className="mt-6">
-          <div className="flex items-center justify-between">
+            {/* Borrowed Items */}
             <div>
-              <dt className="text-sm font-medium text-gray-500 truncate">Total Users</dt>
-              <dd className="text-2xl font-semibold text-gray-900">{stats.totalUsers}</dd>
+              <h2 className="text-xl font-serif text-white mb-4 border-b border-gray-600 pb-2">
+                Borrowed Items
+              </h2>
+              
+              {borrowedItems.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-gray-400 border-b border-gray-600">
+                        <th className="pb-3 font-medium">Name</th>
+                        <th className="pb-3 font-medium">Borrowed On</th>
+                        <th className="pb-3 font-medium">Due Date</th>
+                        <th className="pb-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-gray-300">
+                      {borrowedItems.map((item: any) => (
+                        <tr key={item.id} className="border-b border-gray-700">
+                          <td className="py-3">{item.item?.name || 'N/A'}</td>
+                          <td className="py-3">{item.borrow_date ? new Date(item.borrow_date).toLocaleDateString() : 'N/A'}</td>
+                          <td className="py-3">{item.due_date ? new Date(item.due_date).toLocaleDateString() : 'N/A'}</td>
+                          <td className="py-3">
+                            <span className={`px-3 py-1 rounded text-sm ${
+                              item.status === 'borrowed' ? 'bg-orange-500 text-white' :
+                              item.status === 'returned' ? 'bg-green-500 text-white' :
+                              'bg-gray-500 text-white'
+                            }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-400 text-center py-8">No borrowed items</p>
+              )}
             </div>
-            <Link href="/users" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              Manage users →
-            </Link>
           </div>
-        </Card>
-      )}
-
-      {/* Recent Transactions */}
-      <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900">Recent Transactions</h2>
-        <div className="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
-          {stats.recentTransactions.length > 0 ? (
-            <ul className="divide-y divide-gray-200">
-              {stats.recentTransactions.map((transaction: any) => (
-                <li key={transaction.id}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-indigo-600 truncate">
-                        {transaction.status === 'borrowed' ? 'Borrowed' : transaction.status === 'returned' ? 'Returned' : transaction.status}: {transaction.item?.name || 'Item'}
-                      </p>
-                      <div className="ml-2 flex-shrink-0 flex">
-                        <Badge 
-                          variant={
-                            transaction.status === 'borrowed' ? 'warning' : 
-                            transaction.status === 'returned' ? 'success' : 
-                            'danger'
-                          }
-                        >
-                          {transaction.status}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex items-center text-sm text-gray-500">
-                          Due: {transaction.due_date ? new Date(transaction.due_date).toLocaleDateString() : 'N/A'}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <p>
-                          {new Date(transaction.created_at || transaction.borrow_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="px-4 py-5 sm:p-6 text-center text-gray-500">
-              No recent transactions found
-            </div>
-          )}
-        </div>
-        <div className="mt-4 text-right">
-          <Link href="/transactions" className="font-medium text-indigo-600 hover:text-indigo-500">
-            View all transactions
-          </Link>
         </div>
       </div>
-
-      {/* Low Stock Items */}
-      {stats.lowStockItems.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900">Low Stock Items</h2>
-          <div className="mt-4 bg-white shadow overflow-hidden sm:rounded-md">
-            <ul className="divide-y divide-gray-200">
-              {stats.lowStockItems.map((item: any) => (
-                <li key={item.id}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-indigo-600 truncate">
-                        {item.name}
-                      </p>
-                      <div className="ml-2 flex-shrink-0 flex">
-                        <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                          {item.quantity} remaining
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex items-center text-sm text-gray-500">
-                          Category: {item.category?.name || 'Uncategorized'}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <Link href={`/inventory/${item.id}`} className="font-medium text-indigo-600 hover:text-indigo-500">
-                          View details
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }

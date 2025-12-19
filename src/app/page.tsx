@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loading } from '@/components/ui/Loading';
 
 export default function Home() {
   const { isAuthenticated, loading } = useAuth();
@@ -17,16 +18,7 @@ export default function Home() {
   }, [isAuthenticated, loading, router]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Loading text="Loading..." size="lg" fullScreen />;
   }
 
   return (

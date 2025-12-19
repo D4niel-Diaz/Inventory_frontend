@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/api';
 import { toast } from 'react-toastify';
+import { Loading } from '@/components/ui/Loading';
 
 interface User {
   id: number;
@@ -36,15 +37,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Check if token exists in localStorage
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         const response = await authService.getUser();
 
         if (response.data?.status && response.data?.data) {
           setUser(response.data.data);
         } else {
           setUser(null);
+          localStorage.removeItem('auth_token');
         }
-      } catch {
+      } catch (error) {
+        console.error('Auth check failed:', error);
         setUser(null);
+        localStorage.removeItem('auth_token');
       }
       setLoading(false);
     };
@@ -58,12 +70,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await authService.csrfCookie();
       const response = await authService.login({ email, password });
       
-      // Backend returns { status: true, message: '...', data: { user: {...} } }
+      // Backend returns { status: true, message: '...', data: { user: {...}, token: '...' } }
       if (response.data && response.data.status) {
         const responseData = response.data.data;
         const user = responseData?.user;
+        const token = responseData?.token;
         
-        if (user) {
+        if (user && token) {
+          // Store token in localStorage for subsequent requests
+          localStorage.setItem('auth_token', token);
+          
+          // Fetch full user data with roles
           try {
             const me = await authService.getUser();
             setUser(me.data?.data || user);
@@ -117,15 +134,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await authService.csrfCookie();
       const response = await authService.register({ name, email, password, password_confirmation });
       
-      // Backend returns { status: true, message: '...', data: { user: {...} } }
+      // Backend returns { status: true, message: '...', data: { user: {...}, token: '...' } }
       if (response.data && response.data.status) {
         const responseData = response.data.data;
         const user = responseData?.user;
+        const token = responseData?.token;
         
-        if (user) {
+        if (user && token) {
+          // Store token in localStorage for subsequent requests
+          localStorage.setItem('auth_token', token);
           setUser(user);
           toast.success(response.data.message || 'Registration successful');
-      router.push('/dashboard');
+          router.push('/dashboard');
         } else {
           throw new Error('Invalid response format from server');
         }
@@ -154,11 +174,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
       await authService.logout();
+      // Clear token from localStorage
+      localStorage.removeItem('auth_token');
       setUser(null);
       toast.success('Logged out successfully');
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
+      // Clear token even if logout request fails
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      router.push('/login');
     } finally {
       setLoading(false);
     }
@@ -221,6 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         changePassword,
       }}
     >
+      {loading && <Loading text="Please wait..." size="lg" fullScreen />}
       {children}
     </AuthContext.Provider>
   );
