@@ -8,10 +8,20 @@ import { toast } from 'react-toastify';
 import { Loading } from '@/components/ui/Loading';
 import { BackButton } from '@/components/ui/BackButton';
 
+// ✅ Define User type
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  profile_image?: string | null;
+  is_restricted: boolean;
+  roles?: Array<{ name: string } | string>;
+};
+
 export default function Users() {
   const { user, isAdmin } = useAuth();
   const router = useRouter();
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<User[]>([]); // ✅ typed
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,15 +52,15 @@ export default function Users() {
   const toggleUserRestriction = async (userId: number, isCurrentlyRestricted: boolean) => {
     try {
       const response = await userService.toggleUserRestriction(userId, 'toggle');
-      
+
       // Backend returns { status: true, message: '...', data: {...} }
-      const updatedUser = response.data.data || response.data;
-      
+      const updatedUser: User = response.data.data || response.data;
+
       // Update local state
-      setUsers(users.map((u: any) => 
+      setUsers(users.map((u) =>
         u.id === userId ? updatedUser : u
       ));
-      
+
       toast.success(response.data.message || `User ${isCurrentlyRestricted ? 'unrestricted' : 'restricted'} successfully`);
     } catch (error: any) {
       console.error('Error toggling user restriction:', error);
@@ -77,26 +87,26 @@ export default function Users() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         User
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Email
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Role
                       </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th scope="col" className="relative px-6 py-3">
+                      <th className="relative px-6 py-3">
                         <span className="sr-only">Actions</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.length > 0 ? (
-                      users.map((userItem) => (
+                      users.map((userItem: User) => (
                         <tr key={userItem.id}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -125,7 +135,7 @@ export default function Users() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-500">
-                              {userItem.roles?.some((role: any) => role.name === 'admin' || typeof role === 'string' && role === 'admin') ? 'Admin' : 'User'}
+                              {userItem.roles?.some((role) => role.name === 'admin' || (typeof role === 'string' && role === 'admin')) ? 'Admin' : 'User'}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -138,7 +148,6 @@ export default function Users() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            {/* Don't allow admins to restrict themselves */}
                             {userItem.id !== user?.id && (
                               <button
                                 onClick={() => toggleUserRestriction(userItem.id, userItem.is_restricted)}
