@@ -9,23 +9,24 @@ import { Loading } from '@/components/ui/Loading';
 import { BackButton } from '@/components/ui/BackButton';
 
 // ✅ Define User type
+type Role = string | { name: string };
+
 type User = {
   id: number;
   name: string;
   email: string;
   profile_image?: string | null;
   is_restricted: boolean;
-  roles?: Array<{ name: string } | string>;
+  roles?: Role[];
 };
 
 export default function Users() {
   const { user, isAdmin } = useAuth();
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]); // ✅ typed
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Redirect if not admin
     if (!isAdmin) {
       router.push('/dashboard');
       return;
@@ -35,8 +36,7 @@ export default function Users() {
       try {
         setLoading(true);
         const response = await userService.getAllUsers();
-        // Backend returns { status: true, data: [...] }
-        const usersData = response.data.data || response.data || [];
+        const usersData: User[] = response.data.data || response.data || [];
         setUsers(usersData);
       } catch (error: any) {
         console.error('Error fetching users:', error);
@@ -52,15 +52,8 @@ export default function Users() {
   const toggleUserRestriction = async (userId: number, isCurrentlyRestricted: boolean) => {
     try {
       const response = await userService.toggleUserRestriction(userId, 'toggle');
-
-      // Backend returns { status: true, message: '...', data: {...} }
       const updatedUser: User = response.data.data || response.data;
-
-      // Update local state
-      setUsers(users.map((u) =>
-        u.id === userId ? updatedUser : u
-      ));
-
+      setUsers(users.map(u => u.id === userId ? updatedUser : u));
       toast.success(response.data.message || `User ${isCurrentlyRestricted ? 'unrestricted' : 'restricted'} successfully`);
     } catch (error: any) {
       console.error('Error toggling user restriction:', error);
@@ -87,82 +80,77 @@ export default function Users() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.length > 0 ? (
-                      users.map((userItem: User) => (
-                        <tr key={userItem.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10">
-                                {userItem.profile_image ? (
-                                  <img 
-                                    className="h-10 w-10 rounded-full" 
-                                    src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/storage/${userItem.profile_image}`} 
-                                    alt={userItem.name} 
-                                  />
-                                ) : (
-                                  <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                    <span className="text-lg font-medium text-gray-600">
-                                      {userItem.name?.charAt(0)?.toUpperCase() || 'U'}
-                                    </span>
-                                  </div>
-                                )}
+                      users.map((userItem: User) => {
+                        const isAdminRole = userItem.roles?.some(role =>
+                          (typeof role === 'string' && role === 'admin') ||
+                          (typeof role === 'object' && role.name === 'admin')
+                        );
+
+                        return (
+                          <tr key={userItem.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  {userItem.profile_image ? (
+                                    <img 
+                                      className="h-10 w-10 rounded-full" 
+                                      src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/storage/${userItem.profile_image}`} 
+                                      alt={userItem.name} 
+                                    />
+                                  ) : (
+                                    <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                                      <span className="text-lg font-medium text-gray-600">
+                                        {userItem.name?.charAt(0)?.toUpperCase() || 'U'}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">{userItem.name}</div>
+                                </div>
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{userItem.name}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{userItem.email}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">
-                              {userItem.roles?.some((role) => role.name === 'admin' || (typeof role === 'string' && role === 'admin')) ? 'Admin' : 'User'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              userItem.is_restricted 
-                                ? 'bg-red-100 text-red-800' 
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {userItem.is_restricted ? 'Restricted' : 'Active'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            {userItem.id !== user?.id && (
-                              <button
-                                onClick={() => toggleUserRestriction(userItem.id, userItem.is_restricted)}
-                                className={`${
-                                  userItem.is_restricted 
-                                    ? 'text-green-600 hover:text-green-900' 
-                                    : 'text-red-600 hover:text-red-900'
-                                }`}
-                              >
-                                {userItem.is_restricted ? 'Unrestrict' : 'Restrict'}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">{userItem.email}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">{isAdminRole ? 'Admin' : 'User'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                userItem.is_restricted 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : 'bg-green-100 text-green-800'
+                              }`}>
+                                {userItem.is_restricted ? 'Restricted' : 'Active'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              {userItem.id !== user?.id && (
+                                <button
+                                  onClick={() => toggleUserRestriction(userItem.id, userItem.is_restricted)}
+                                  className={`${
+                                    userItem.is_restricted 
+                                      ? 'text-green-600 hover:text-green-900' 
+                                      : 'text-red-600 hover:text-red-900'
+                                  }`}
+                                >
+                                  {userItem.is_restricted ? 'Unrestrict' : 'Restrict'}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
                         <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
