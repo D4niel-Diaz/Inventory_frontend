@@ -10,7 +10,7 @@ export default function Login() {
   const { login } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data: any) => {
@@ -34,49 +34,60 @@ export default function Login() {
               Login
             </h2>
           </div>
+
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Email
+              </label>
               <input
                 {...register('email', { required: 'Email is required' })}
-                id="email"
                 type="email"
                 autoComplete="email"
-                className="block w-full px-4 py-3 bg-transparent border border-cyan-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400"
+                className="block w-full px-4 py-3 bg-transparent border border-cyan-600 rounded-md text-white focus:outline-none focus:border-cyan-400"
                 placeholder="Enter your email"
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-400">{errors.email.message as string}</p>
+                <p className="mt-1 text-sm text-red-400">
+                  {errors.email.message as string}
+                </p>
               )}
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Password
+              </label>
               <input
                 {...register('password', { required: 'Password is required' })}
-                id="password"
                 type="password"
                 autoComplete="current-password"
-                className="block w-full px-4 py-3 bg-transparent border border-cyan-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400"
+                className="block w-full px-4 py-3 bg-transparent border border-cyan-600 rounded-md text-white focus:outline-none focus:border-cyan-400"
                 placeholder="Enter your password"
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-400">{errors.password.message as string}</p>
+                <p className="mt-1 text-sm text-red-400">
+                  {errors.password.message as string}
+                </p>
               )}
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md text-white font-medium bg-cyan-400 hover:bg-cyan-500 focus:outline-none disabled:opacity-50 transition-colors"
-              >
-                {loading ? 'Signing in...' : 'Login'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-md text-white bg-cyan-400 hover:bg-cyan-500 disabled:opacity-50"
+            >
+              {loading ? 'Signing in...' : 'Login'}
+            </button>
 
             <div className="text-center text-sm">
-              <span className="text-gray-300">Don't have an account? </span>
-              <Link href="/register" className="font-medium text-cyan-400 hover:text-cyan-300">
+              <span className="text-gray-300">
+                Don&apos;t have an account?{' '}
+              </span>
+              <Link
+                href="/register"
+                className="font-medium text-cyan-400 hover:text-cyan-300"
+              >
                 Sign Up
               </Link>
             </div>
